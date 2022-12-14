@@ -3,6 +3,18 @@
 // libs
 let fs = require('fs');
 const { spawn } = require('node:child_process');
+const readline = require('readline')
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
+
+const question = prompt => {
+  return new Promise((resolve, reject) => {
+    rl.question(prompt, resolve)
+  })
+}
 
 // flags
 let flags = {
@@ -12,6 +24,36 @@ let flags = {
   '--lang':''
 };
 
+(async () => {
+  console.log('Getting flags...');
+  for (let f of Object.keys(flags)){
+    flags[f] = getFlag(f) || await question(`Introduce ${f}: `);
+  }
+  console.log(flags);
+
+  // Get hash
+  let hash;
+  let file = flags['--sha'].replace('/es/','/en-us/');
+
+  const gitLog = spawn('git',['log','--pretty=format:"%H"','-n','1',file],{cwd:flags['--content']});
+  
+  gitLog.stdout.on('data', (data) => {
+    hash = data.toString().replace(/\"/g,'');
+    console.log('Getting sha from: ' + file);
+    console.log('Sha: ' + hash);
+    if (process.platform == 'darwin') {
+      pbcopy(hash);
+    }
+    //insertSha(flags['--translated'],flags['--sha'],hash);
+  });
+  
+  gitLog.stderr.on('data', (data) => {
+	  console.error(`stderr: ${data}`);
+  });
+
+  rl.close()
+})()
+
 // getFlags
 function getFlag(flag){
   let flagIndex = process.argv.indexOf(flag);
@@ -19,38 +61,19 @@ function getFlag(flag){
   if (flagIndex > -1) {
     flagValue = process.argv[flagIndex + 1];
   } else {
-    console.log('You need to specify a file with --flag flag');
-    return 1;
+    console.log(`You need to specify the flag: ${flag}`);
+    return false;
   }
 
   return flagValue;
 }
 
-console.log('Getting flags...');
-Object.keys(flags).forEach(key => {
-  flags[key] = getFlag(key);
-});
-console.log(flags);
-
-// Get hash
-let hash;
-let file = flags['--sha'].replace('/es/','/en-us/');
-
-const gitLog = spawn('git',['log','--pretty=format:"%H"','-n','1',file],{cwd:flags['--content']});
-
-gitLog.stdout.on('data', (data) => {
-  hash = data.toString().replace(/\"/g,'');
-  console.log('Getting sha from: ' + file);
-  console.log('Sha: ' + hash);
-  if (process.platform == 'darwin') {
-    pbcopy(hash);
-  }
-  insertSha(flags['--translated'],flags['--sha'],hash);
-});
-
-gitLog.stderr.on('data', (data) => {
-	console.error(`stderr: ${data}`);
-});
+function pbcopy(data) {
+  var proc = require('child_process').spawn('pbcopy');
+  proc.stdin.write(data);
+  proc.stdin.end();
+  console.log('Sha copied to clipboard: ' + data);
+}
 
 function insertSha(translatedDir, shaFile, hash){
   fs.readFile(translatedDir + shaFile, 'utf8', function(err,data){
@@ -70,9 +93,3 @@ function insertSha(translatedDir, shaFile, hash){
   });
 }
 
-function pbcopy(data) {
-  var proc = require('child_process').spawn('pbcopy');
-  proc.stdin.write(data);
-  proc.stdin.end();
-  console.log('Sha copied to clipboard: ' + data);
-}
