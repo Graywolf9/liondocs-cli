@@ -1,3 +1,5 @@
+// Usage: liondocs.cli.js --sha files/es/web/api/element/animationend_event/index.md --content ../content --translated ./ --lang es
+
 "use strict";
 
 // libs
@@ -44,7 +46,7 @@ let flags = {
     if (process.platform == 'darwin') {
       pbcopy(hash);
     }
-    //insertSha(flags['--translated'],flags['--sha'],hash);
+    insertSha(flags['--translated'],flags['--sha'],hash);
   });
   
   gitLog.stderr.on('data', (data) => {
